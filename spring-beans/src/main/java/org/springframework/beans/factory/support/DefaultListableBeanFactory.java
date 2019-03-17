@@ -880,6 +880,11 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 
 		if (beanDefinition instanceof AbstractBeanDefinition) {
 			try {
+				/*
+				 * 注册 前 的 最后 一次 校验， 这里 的 校验 不同于 之前 的 XML 文件 校验，
+				 * 主要 是 对于 AbstractBeanDefinition 属性 中的 methodOverrides 校验，
+				 * 校验 methodOverrides 是否 与 工厂 方法 并存 或者 methodOverrides 对应 的 方法 根本 不存在
+				 */
 				((AbstractBeanDefinition) beanDefinition).validate();
 			}
 			catch (BeanDefinitionValidationException ex) {
@@ -889,8 +894,10 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		BeanDefinition existingDefinition = this.beanDefinitionMap.get(beanName);
+		//处理 注册 已经 注册 的 beanName 情况
 		if (existingDefinition != null) {
 			if (!isAllowBeanDefinitionOverriding()) {
+				//如果 对应 的 BeanName 已经 注册 且 在 配置 中 配置 了 bean 不允许 被 覆盖， 则 抛出 异常
 				throw new BeanDefinitionOverrideException(beanName, beanDefinition, existingDefinition);
 			}
 			else if (existingDefinition.getRole() < beanDefinition.getRole()) {
@@ -920,6 +927,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		else {
 			if (hasBeanCreationStarted()) {
 				// Cannot modify startup-time collection elements anymore (for stable iteration)
+				//因为 beanDefinitionMap 是 全局 变量， 这里 定会 存在 并发 访问
 				synchronized (this.beanDefinitionMap) {
 					this.beanDefinitionMap.put(beanName, beanDefinition);
 					List<String> updatedDefinitions = new ArrayList<>(this.beanDefinitionNames.size() + 1);
@@ -935,7 +943,9 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 			}
 			else {
 				// Still in startup registration phase
+				//注册 beanDefinition
 				this.beanDefinitionMap.put(beanName, beanDefinition);
+				//记录 beanName
 				this.beanDefinitionNames.add(beanName);
 				this.manualSingletonNames.remove(beanName);
 			}
@@ -943,6 +953,7 @@ public class DefaultListableBeanFactory extends AbstractAutowireCapableBeanFacto
 		}
 
 		if (existingDefinition != null || containsSingleton(beanName)) {
+			//重置 所有 beanName 对应 的 缓存
 			resetBeanDefinition(beanName);
 		}
 	}
